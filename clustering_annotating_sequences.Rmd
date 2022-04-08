@@ -75,6 +75,11 @@ genome
 ```
 We are working with full-length sequences.   The refence genome is `r width(genome)` bp in length.
 
+# Exercise
+
+1. Extract the first 10 sequences.
+2. Extract the last 10 bases.
+
 # Visualize genomic features
 
 Let's see how the coding regions are arrayed.
@@ -118,8 +123,7 @@ Then we get all the exons for that ENTREZID id as a `GenomicRanges` object.
 
 # Exercise
 
-1.  In Mus Musculus, determine how many different versions of transcript exist for the gene *Ptprc* (CD45).  Extra credit: plot with `ggbio::autoplot`.
-
+2.  In Mus Musculus, determine how many different versions of transcript exist for the gene *Ptprc* (CD45).  Extra credit: plot with `ggbio::autoplot`.
 
 # Alignment
 
@@ -193,14 +197,14 @@ The above code takes about a couple minutes to run, so figure that 400 sequences
 
 # Exercises
 
-2.  Consider the sequences
+3.  Consider the sequences
 ```r
 query = 'The ran'
 reference = 'The cat ran'
 ```
 Can you modify the gap penalties so that "ran" is included in a **local alignment**?
 
-3. Given equal gap and mismatch penalties, does the best local alignment ever return a worse score than the best global alignment?
+4. Given equal gap and mismatch penalties, does the best local alignment ever return a worse score than the best global alignment?
 
 
 ## Multiple alignments
@@ -354,7 +358,7 @@ We'll subsample to prevent lighting anyone's computer on fire.  75% of sequences
 
 # Clustering II
 
-Date of collection, unsurprisingly, corresponds to infection surges.
+There are gaps in collection, corresponding to troughs between surges.
 
 ```{r}
 ggplot(fastanames, aes(x = Collection_Date)) + 
@@ -378,8 +382,6 @@ p
 ```
 
 
-April of 2020 looks quite different from this winter.  April 2020 seems to show an expansion of a homogenous founder, whereas this winter multiple, divergent strains are present.
-
 # PCA
 
 ```{r}
@@ -400,19 +402,6 @@ plt + aes(color = Pangolin) +
 
 
 Last, and probably least (since the phylogenetic tree seems much more informative) we can plot principal components.
-
-
-# Exercises
-
-
-1.  In Mus Musculus, determine the positions of codons in *Ptprc* (CD45).  Extra credit: plot with `ggbio::autoplot`.
-2.  Given equal gap and mismatch penalties, does the best local alignment ever return a worse score than the best global alignment?
-3.  Consider the sequences
-```r
-query = 'The ran'
-reference = 'The cat ran'
-```
-Can you modify the gap penalties so that "ran" is included in a **local alignment**?
 
 
 # Appendix
