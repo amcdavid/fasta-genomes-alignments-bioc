@@ -16,10 +16,16 @@ extensions: inline_footnotes
 
 * Have sequences from some region.  Examples: immune repertoire, germline variation, viral genomes.
 * Or perhaps homologs from various species.
-* Want to explore similiarities/differences between sequences.  Could be used to cluster them, or generate a phylogeny.
+* Want to explore similarities/differences between sequences.  Could be used to cluster them, or generate a phylogeny.
 * If there is a reference, can ask how important a difference is
   * If in a gene, does it alter protein coding?
   * Is it in an evolutionarily conserved region?
+  
+# Learning objectives
+
+1.  Query and manipulate genomic information in R, e.g. genes and transcripts
+2.  Manipulate sequences
+3.  Align and cluster sequences
 
 # Everybody's favorite least favorite topic
 
@@ -47,11 +53,11 @@ library(ggrepel)
 # BiocManager::install(c('Biostrings', 'dplyr', 'ggplot2', 
 # 'stringr', 'GenomicRanges', 'rtracklayer', 'seqLogo', 'Mus.musculus', 'forcats', 'ggdendro', 'ggrepel'))
 
-fasta = readDNAStringSet('data/ny_nt.fasta')
+fasta = readDNAStringSet('data/ny_nt_2022.fasta')
 genome = readDNAStringSet('data/sars-cov2-genome.fasta')
 ```
 
-We'll load all the SARS-COV2 genomic sequences that have been submitted from New York State as of 8-April-2021, as well as the reference genome as `DNAStringSets`.
+We'll load a random sample of the SARS-COV2 genomic sequences that have been submitted from New York State as of 7-April-2022, as well as the reference genome as `DNAStringSets`.
 
 ***
 
@@ -91,7 +97,7 @@ anno_df = anno_df %>% mutate(Namef = fct_reorder(factor(Name), start, .fun = min
 (anno_plot %+% anno_df) + aes(x = Namef)
 ```
 
-Note that in many cases your efforts might be better spent using the [ucsc genome browser](https://genome.ucsc.edu/cgi-bin/hgTracks?db=wuhCor1&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=NC_045512v2%3A1%2D29903&hgsid=821382083_Elmbs8zUZtJi7b3n4xmm5wGCaWaK).
+Note that in many cases your efforts might be better spent first using the [ucsc genome browser](https://genome.ucsc.edu/cgi-bin/hgTracks?db=wuhCor1&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=NC_045512v2%3A1%2D29903&hgsid=821382083_Elmbs8zUZtJi7b3n4xmm5wGCaWaK).
 
 # Using genomic information for other organisms
 
@@ -100,14 +106,20 @@ In the case of SARS-COV-2, I had to download a gff file with the annotations fro
 ```{r}
 library(Mus.musculus)
 my_entrezid = AnnotationDbi::select(org.Mm.eg.db, 'Itgax', columns = "ENTREZID", keytype = 'SYMBOL')
-Itgax_region = transcriptsBy(TxDb.Mmusculus.UCSC.mm10.knownGene, 'gene')[[my_entrezid$ENTREZID]]
+Itgax_region = exonsBy(TxDb.Mmusculus.UCSC.mm10.knownGene, 'gene')[[my_entrezid$ENTREZID]]
 Itgax_region
 ```
 
 Note that warning about `select` being masked!  If you are using `dplyr` you will need to fully-qualify it with `dplyr::select`.
 
-Here we first access the `OrgDb` for mouse, and get the `ENTREZID` (the "column" returned) for the Itgax gene `SYMBOL`.
-Then we get all the transcripts (exons) for that ENTREZID id as a `GenomicRanges` object.
+Here we first access the `OrgDb` for mouse, and get the `ENTREZID` (the "column" returned) for the Itgax gene `SYMBOL`.  The `OrgDB` objects are databases -- you can see which keys you can search with `keytypes(org.Mm.eg.db)`, and what variables can be returned with `columns(org.Mm.eg.db)`.
+
+Then we get all the exons for that ENTREZID id as a `GenomicRanges` object.
+
+# Exercise
+
+1.  In Mus Musculus, determine how many different versions of transcript exist for the gene *Ptprc* (CD45).  Extra credit: plot with `ggbio::autoplot`.
+
 
 # Alignment
 
@@ -116,7 +128,7 @@ The fasta are fragments, starting  and stopping at undefined positions in the SA
 [Usearch](https://drive5.com/usearch/manual/cmds_all.html) is an extremely flexible and fast shell tool for aligning/searching/clustering sequences.  It's well worth installing a copy and learning how to use it if you need to do large-scale manipulation of sequences.  Unfortunately, it is closed source, so if the documentation doesn't explain something, you have to trust that the author has implemented it correctly.  Open-sourced alternatives are available in `blast` or `cdhit.`
 
 ```{sh, eval = FALSE}
-usearch -usearch_global data/ny_nt.fasta -db data/sars-cov2-genome.fasta \
+usearch -usearch_global data/ny_nt_2022.fasta -db data/sars-cov2-genome.fasta \
 -nastout outputs/ny_nt.nast -strand plus -id .7
 
 ```
@@ -134,11 +146,11 @@ The command above aligns all the .fasta against the reference genome, and write 
 In our command chunk below, the most important parameter is `-usearch_global`, specifying a global alignment.
 
 ```{sh, eval = FALSE}
-usearch -usearch_global data/ny_nt.fasta -db data/ny_nt.fasta \
+usearch -usearch_global data/ny_nt_2022.fasta -db data/sars-cov2-genome.fasta  \
 -nastout outputs/ny_nt.nast -strand plus -id .7
 ```
 
-This means that a penalty is paid for every base in the query (`data/ny_nt.fasta`) that doesn't align to the reference `data/ny_nt.fasta`.
+This means that a penalty is paid for every base in the query (`data/ny_nt_2022.fasta`) that doesn't align to the reference `data/sars-cov2-genome.fasta`.
 
 ```{r}
 query = c('Txe rat can',
@@ -179,12 +191,24 @@ The above code takes about a couple minutes to run, so figure that 400 sequences
 
 ***
 
+# Exercises
+
+2.  Consider the sequences
+```r
+query = 'The ran'
+reference = 'The cat ran'
+```
+Can you modify the gap penalties so that "ran" is included in a **local alignment**?
+
+3. Given equal gap and mismatch penalties, does the best local alignment ever return a worse score than the best global alignment?
+
+
 ## Multiple alignments
 
-In the above, each sequence is aligned in turn to a reference. But in other cases, we might want to define a reference or a consensus using all sequences simultaneously. This is called multiple alignment. It scales very poorly in the number of sequences.  `kalign` is among the state of the art.
+In the above, each sequence is aligned in turn to a reference. But in other cases, we might want to define a reference or a consensus using all sequences simultaneously. This is called a multiple alignment. It scales very poorly in the number of sequences.  `kalign` is among the state of the art.
 
 ```{sh, eval = FALSE}
-kalign -i data/ny_nt.fasta -o outputs/kalign_large.out
+kalign -i data/ny_nt_2022.fasta -o outputs/kalign_large.out
 ```
 
 This takes several hours, compared to ~20 seconds for `usearch.`
@@ -218,8 +242,7 @@ str(aligned)
 slotNames(aligned)
 ```
 
-You can examine it with `str` and `slotNames`.  However, in this case the `externalptr` business needs nothing good will come of poking at its slots manually.
-
+You can examine it with `str` and `slotNames`.  However, in this case the `externalptr` business means nothing good will come of poking at its slots manually.
 
 You can find out all known methods that take this object as input with something like this:
 
@@ -284,10 +307,12 @@ Most of the genome has low rates of polymorphism with a few notable exceptions.
 Finally, we can do some clustering of the sequences.
 
 ```{r}
+genic_only = narrow(aligned, start = filter(anno_df, type == 'gene') %>% pull(start) %>% min(),
+                    end =  filter(anno_df, type == 'gene') %>% pull(end) %>% max())
 genic_only_wild = chartr(old = '-', new="N", genic_only)
 ```
 
-We'll convert the gaps to "N"s in order to not have them penalized in calculating string distances and take only complete sequences.  Note that we really want to only convert leading/trailing gaps to match as wildcards. The code below does this, but is a rather nasty hack involving regular expressions. 
+We'll convert the gaps to "N"s in order to not have them penalized in calculating string distances and take only complete sequences.  Note that we really want to only convert leading/trailing gaps to match as wildcards. The code below does this, but is a rather nasty hack involving regular expressions.  We narrowed the sequence to trim off the UTR, so shouldn't have an issue with gaps at the start and end. 
 
 ```{r, eval = FALSE}
 genic_only_wild = lapply(genic_only, function(x){
@@ -304,13 +329,8 @@ genic_only_wild = lapply(genic_only, function(x){
 # Clustering: setup metadata
 
 ```{r}
-fastanames = tibble(names = names(genic_only))
-name_split = str_split_fixed(fastanames$names, fixed("|"), 4)
-meta = readr::read_csv('data/sequence_meta.csv')
-
-
-fastanames = fastanames %>% 
-  mutate(Accession = str_replace_all(name_split[,1], fixed('.1 '), ''))
+fastanames = tibble(Accession = names(genic_only))
+meta = readr::read_csv('data/sequence_meta_2022.csv')
 fastanames = left_join(fastanames, meta)
 ```
 
@@ -326,8 +346,7 @@ stringDist_fixed = function(x){
 We also have to hack a little function to calculate the hamming distance, ignoring wildcards.
 
 ```{r}
-to_sample = sample(length(genic_only_wild), 500)
-dists = stringDist_fixed(genic_only_wild[to_sample])
+dists = stringDist_fixed(genic_only_wild)
 summary(dists)
 ```
 
@@ -338,7 +357,7 @@ We'll subsample to prevent lighting anyone's computer on fire.  75% of sequences
 Date of collection, unsurprisingly, corresponds to infection surges.
 
 ```{r}
-ggplot(meta, aes(x = Collection_Date)) + 
+ggplot(fastanames, aes(x = Collection_Date)) + 
   geom_histogram() + theme_minimal()
 ```
 
@@ -347,12 +366,13 @@ Do we see segregation of the sequence?
 ```{r}
 hc = hclust(dists)
 ddata = dendro_data(hc)
-ddata$labels = left_join(ddata$labels, fastanames, by = c(label = 'names'))
+ddata$labels = left_join(ddata$labels, fastanames, by = c(label = 'Accession'))
 
 p = ggplot(segment(ddata)) + 
   geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
    geom_jitter(data = ddata$labels, aes(x = x, y = y, color = Collection_Date), size = .5) +
-  theme_minimal()
+  theme_minimal() +
+  scale_color_viridis_c()
 p
 
 ```
@@ -365,11 +385,15 @@ April of 2020 looks quite different from this winter.  April 2020 seems to show 
 ```{r}
 pr = prcomp(as.matrix(dists), retx = TRUE)
 
-pc_meta = cbind(pr$x[, 1:2], meta[to_sample,])
+pc_meta = cbind(pr$x[, 1:2], fastanames)
 plt = ggplot(pc_meta, aes(x = `PC1`, y= `PC2`, color = Collection_Date)) + 
-  geom_jitter(alpha = .5, width = 10, height = 5) + theme_minimal()
+  geom_jitter(alpha = .5, width = 10, height = 5) + theme_minimal() +
+  scale_color_viridis_c()
 
 plt
+
+plt + aes(color = Pangolin) + 
+  scale_color_discrete() + theme(legend.pos = 'none')
 
 
 ```
@@ -393,14 +417,19 @@ Can you modify the gap penalties so that "ran" is included in a **local alignmen
 
 # Appendix
 
-```{r}
+```{r, eval = FALSE}
+library(Biostrings)
+library(readr)
+library(dplyr)
+library(lubridate)
+
 if(!dir.exists('data')) dir.create('data')
-if(!file.exists('data/ny_nt.fasta')){
-    download.file('https://www.ncbi.nlm.nih.gov/genomes/VirusVariation/vvsearch2/?fq=%7B!tag=SeqType_s%7DSeqType_s:(%22Nucleotide%22)&fq=VirusLineageId_ss:(2697049)&fq=%7B!tag=Completeness_s%7DCompleteness_s:(%22complete%22)&fq=%7B!tag=USAState_s%7DUSAState_s:(%22NY%22)&cmd=download&sort=SourceDB_s%20desc,CreateDate_dt%20desc,id%20asc&dlfmt=fasta&fl=AccVer_s,Definition_s,SetAcc_s,Country_s,Nucleotide_seq', destfile = 'data/ny_nt.fasta')
+if(!file.exists('data/ny_nt_2022.fasta')){
+    download.file('https://www.ncbi.nlm.nih.gov/genomes/VirusVariation/vvsearch2/?fq=%7B!tag=SeqType_s%7DSeqType_s:(%22Nucleotide%22)&fq=VirusLineageId_ss:(2697049)&fq=%7B!tag=Completeness_s%7DCompleteness_s:(%22complete%22)&fq=&fq=%7B!tag=USAState_s%7DUSAState_s:(%22NY%22)&fq=%7B!tag=SLen_i%7DSLen_i:(%5B29000%20TO%2030000%5D)&cmd=download&sort=CollectionDate_s%20asc,SourceDB_s%20desc,CreateDate_dt%20desc,id%20asc&dlfmt=fasta&fl=AccVer_s,Definition_s,Nucleotide_seq', destfile = 'data/ny_nt_2022.fasta')
 }
 
-if(!file.exists(('data/sequence_meta.csv'))){
-  download.file('https://www.ncbi.nlm.nih.gov/genomes/VirusVariation/vvsearch2/?fq=%7B!tag=SeqType_s%7DSeqType_s:(%22Nucleotide%22)&fq=VirusLineageId_ss:(2697049)&fq=%7B!tag=Completeness_s%7DCompleteness_s:(%22complete%22)&fq=%7B!tag=USAState_s%7DUSAState_s:(%22NY%22)&cmd=download&sort=SourceDB_s%20desc,CreateDate_dt%20desc,id%20asc&dlfmt=csv&fl=Accession:id,Release_Date:CreateDate_dt,Species:VirusSpecies_s,Length:SLen_i,Nuc_Completeness:Completeness_s,Geo_Location:CountryFull_s,USA:USAState_s,Host:Host_s,Isolation_Source:Isolation_csv,Collection_Date:CollectionDate_s', destfile = 'data/sequence_meta.csv')
+if(!file.exists(('data/sequence_meta_2022.csv'))){
+  download.file('https://www.ncbi.nlm.nih.gov/genomes/VirusVariation/vvsearch2/?fq=%7B!tag=SeqType_s%7DSeqType_s:(%22Nucleotide%22)&fq=VirusLineageId_ss:(2697049)&fq=%7B!tag=Completeness_s%7DCompleteness_s:(%22complete%22)&fq=&fq=%7B!tag=USAState_s%7DUSAState_s:(%22NY%22)&fq=%7B!tag=SLen_i%7DSLen_i:(%5B29000%20TO%2030000%5D)&cmd=download&sort=CollectionDate_s%20asc,SourceDB_s%20desc,CreateDate_dt%20desc,id%20asc&dlfmt=csv&fl=Accession:id,Submitters:Authors_csv,Release_Date:CreateDate_dt,Pangolin:Lineage_s,PangoVersions,Random_Sampling:BaselineSurveillance_s,Isolate:IsolateParsed_s,Species:VirusSpecies_s,Molecule_type:GenomicMoltype_s,Length:SLen_i,Nuc_Completeness:Completeness_s,Geo_Location:CountryFull_s,Country:Country_s,USA:USAState_s,Host:Host_s,Isolation_Source:Isolation_csv,Collection_Date:CollectionDate_s', destfile = 'data/sequence_meta_2022.csv')
 }
 
 
@@ -413,7 +442,18 @@ if(!file.exists('data/sars-cov2.gff.gz')){
   download.file('https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/858/895/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.gff.gz', destfile = 'data/sars-cov2.gff.gz')
 }
 
-# Biostrings::writeXStringSet(fasta[1:20], 'data/small.fasta')
+meta = read_csv("data/sequence_meta_2022.csv")
+meta_sub = meta %>% mutate(year_week = {
+  w = lubridate::week(Collection_Date)
+  y = lubridate::year(Collection_Date)
+  sprintf("%4.0d, week %02d", y, w)
+}) %>% group_by(year_week) %>% slice_sample(n = 5)
+
+fasta_all = Biostrings::readDNAStringSet('~/Downloads/sequences.fasta')
+names(fasta_all) = stringr::str_extract(names(fasta_all), "^[0-9A-Z]+(;ins.+)?")
+fasta = fasta_all[meta_sub$Accession]
+Biostrings::writeXStringSet(fasta, 'data/ny_nt_2022.fasta')
+Biostrings::writeXStringSet(fasta[1:20], 'data/small.fasta')
 ```
 
 If you wanted to do this for real, you should use the much more complete, and annotated data at [gisaid.org] and more closely follow the pipeline at [nextrain.org's github](https://github.com/nextstrain/ncov).
